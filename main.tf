@@ -58,3 +58,48 @@ module "ruby-2_7-lambda" {
   data_table = aws_dynamodb_table.data
   depends_on = [aws_dynamodb_table.data]
 }
+
+resource "aws_apigatewayv2_api" "gateway" {
+  name          = "lambda-battle-api"
+  protocol_type = "HTTP"
+}
+
+locals {
+  lambda_resources = {
+    "ruby-2_7" = { "module" = module.ruby-2_7-lambda }
+  }
+}
+
+resource "aws_lambda_permission" "invoke_permission" {
+  for_each = local.lambda_resources
+  action        = "lambda:InvokeFunction"
+  function_name = each.value.module.lambda.arn
+  principal     = "apigateway.amazonaws.com"
+
+  source_arn = "${aws_apigatewayv2_api.gateway.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_stage" "default" {
+  api_id = aws_apigatewayv2_api.gateway.id
+  name   = "$default"
+  auto_deploy = true
+}
+
+resource "aws_apigatewayv2_integration" "lambda_integration" {
+  for_each = local.lambda_resources
+  api_id           = aws_apigatewayv2_api.gateway.id
+  integration_type = "AWS_PROXY"
+
+  connection_type           = "INTERNET"
+  description               = "${each.key} lambda integration"
+  integration_method        = "POST"
+  integration_uri           = each.value.module.lambda.invoke_arn
+}
+
+resource "aws_apigatewayv2_route" "lambda_route" {
+  for_each = local.lambda_resources
+  api_id    = aws_apigatewayv2_api.gateway.id
+  route_key = "POST /${each.key}"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda_integration[each.key].id}"
+}
