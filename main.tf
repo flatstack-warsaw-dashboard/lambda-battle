@@ -31,11 +31,11 @@ provider "aws" {
 resource "aws_dynamodb_table" "data" {
   name         = "lambda-battle-data"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "lang"
+  hash_key     = "langCase"
   range_key    = "iteration"
 
   attribute {
-    name = "lang"
+    name = "langCase"
     type = "S"
   }
 
@@ -66,7 +66,7 @@ resource "aws_apigatewayv2_api" "gateway" {
 
 locals {
   lambda_resources = {
-    "ruby-2_7" = { "module" = module.ruby-2_7-lambda }
+    "ruby-2_7-x86" = { "module" = module.ruby-2_7-lambda }
   }
 }
 
@@ -102,4 +102,10 @@ resource "aws_apigatewayv2_route" "lambda_route" {
   route_key = "POST /${each.key}"
 
   target = "integrations/${aws_apigatewayv2_integration.lambda_integration[each.key].id}"
+}
+
+output "api_gateway" {
+  value = {
+    "gateway_url" = aws_apigatewayv2_api.gateway.api_endpoint
+  }
 }

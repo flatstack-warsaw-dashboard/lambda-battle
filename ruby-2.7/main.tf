@@ -75,13 +75,15 @@ resource "aws_lambda_function" "lambda" {
   source_code_hash = data.archive_file.source.output_base64sha256
   environment {
     variables = {
-      "GEM_PATH" = "./vendor"
+      "GEM_PATH" = "./vendor",
+      "TABLE" = var.data_table.name
     }
   }
 
   runtime = "ruby2.7"
   memory_size = 128
   timeout = 16
+  #reserved_concurrent_executions = 1
 
   depends_on = [aws_iam_role_policy_attachment.attach_iam_policy_to_iam_role]
 }

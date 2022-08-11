@@ -2,3 +2,4 @@
 */**/dist
 .terraform
 functions/*/src/vendor
+*/node_modules
