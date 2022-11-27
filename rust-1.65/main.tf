@@ -18,9 +18,9 @@ resource "aws_iam_role" "iam_for_lambda" {
 }
 
 resource "aws_iam_policy" "lambda_policy" {
-  name         = "ruby-2.7_battle_lambda_role"
+  name         = "rust-1.65_battle_lambda_role"
   path         = "/"
-  description  = "AWS IAM Policy for ruby 2.7 lambda"
+  description  = "AWS IAM Policy for rust 1.65 lambda"
 
   policy = jsonencode({
     "Version": "2012-10-17",
@@ -74,16 +74,19 @@ data "archive_file" "source" {
   depends_on = [null_resource.build_app]
 }
 
-resource "aws_lambda_function" "test_lambda" {
+resource "aws_lambda_function" "lambda" {
   function_name = "rust-1.65_lambda"
   role          = aws_iam_role.iam_for_lambda.arn
-  handler       = "main"
+  handler       = "func"
   runtime       = "provided.al2"
   source_code_hash = data.archive_file.source.output_base64sha256
+  filename = local.dist_path
+  memory_size = 128
+  timeout = 3
 
   depends_on = [
-    data.archive_file.source,
     aws_iam_role_policy_attachment.attach_iam_policy_to_iam_role,
+    data.archive_file.source,
   ]
 
   environment {
@@ -92,3 +95,8 @@ resource "aws_lambda_function" "test_lambda" {
     }
   }
 }
+
+output "lambda" {
+  value = aws_lambda_function.lambda
+}
+

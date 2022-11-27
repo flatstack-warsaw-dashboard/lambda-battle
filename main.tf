@@ -5,20 +5,10 @@ terraform {
       version = ">= 4.17.1"
     }
   }
-
-  backend "s3" {
-    bucket         = "fwd-remote-state"
-    key            = "lambda-battle.tfstate"
-    region         = "eu-central-1"
-    encrypt        = true
-    dynamodb_table = "tf-remote-state-locks"
-    profile = "fwd-retro"
-  }
 }
 
 provider "aws" {
   region = "eu-central-1"
-  profile = "fwd-retro"
 
   default_tags {
     tags = {
