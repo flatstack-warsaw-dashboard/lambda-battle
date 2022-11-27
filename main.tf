@@ -59,6 +59,12 @@ module "ruby-2_7-lambda" {
   depends_on = [aws_dynamodb_table.data]
 }
 
+module "rust-1_65-lambda" {
+  source = "./rust-1.65"
+  data_table = aws_dynamodb_table.data
+  depends_on = [aws_dynamodb_table.data]
+}
+
 resource "aws_apigatewayv2_api" "gateway" {
   name          = "lambda-battle-api"
   protocol_type = "HTTP"
@@ -67,6 +73,7 @@ resource "aws_apigatewayv2_api" "gateway" {
 locals {
   lambda_resources = {
     "ruby-2_7-x86" = { "module" = module.ruby-2_7-lambda }
+    "rust-1_65-x86" = { "module" = module.rust-1_65-lambda }
   }
 }
 
