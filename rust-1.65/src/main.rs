@@ -1,5 +1,9 @@
+mod iteration;
+
 use lambda_http::{run, http::StatusCode, service_fn, Error, IntoResponse, Request, Response, Body};
 use lambda_http::http::HeaderValue;
+use crate::iteration::Iteration;
+
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -16,6 +20,12 @@ async fn function_handler(request: Request) -> Result<impl IntoResponse, Error> 
         return Ok(make_bad_request());
     }
     let body_text = body_text_opt.unwrap();
+
+    let iteration_wrapped = Iteration::try_from(&body_text);
+    if iteration_wrapped.is_err() {
+        return Ok(make_bad_request());
+    }
+    let iteration = iteration_wrapped.unwrap();
 
     Ok(
         Response::builder()
