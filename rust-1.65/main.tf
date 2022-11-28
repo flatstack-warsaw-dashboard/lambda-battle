@@ -75,9 +75,9 @@ data "archive_file" "source" {
 }
 
 resource "aws_lambda_function" "lambda" {
-  function_name = "rust-1.65_lambda"
+  function_name = "rust_1_65_lambda"
   role          = aws_iam_role.iam_for_lambda.arn
-  handler       = "func"
+  handler       = "main"
   runtime       = "provided.al2"
   source_code_hash = data.archive_file.source.output_base64sha256
   filename = local.dist_path
@@ -86,7 +86,6 @@ resource "aws_lambda_function" "lambda" {
 
   depends_on = [
     aws_iam_role_policy_attachment.attach_iam_policy_to_iam_role,
-    data.archive_file.source,
   ]
 
   environment {
