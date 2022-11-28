@@ -11,15 +11,16 @@ async fn function_handler(request: Request) -> Result<impl IntoResponse, Error> 
         return Ok(make_bad_request());
     }
 
+    let body_text_opt = get_body_text(&request);
+    if body_text_opt.is_none() {
+        return Ok(make_bad_request());
+    }
+    let body_text = body_text_opt.unwrap();
 
     Ok(
         Response::builder()
             .status(StatusCode::OK)
-            .body(
-                request
-                    .body()
-                    .clone()
-            )
+            .body(Body::Text(body_text))
             .unwrap()
     )
 }
@@ -40,4 +41,11 @@ fn make_bad_request() -> Response<Body> {
         .status(StatusCode::BAD_REQUEST)
         .body(Body::Empty)
         .unwrap()
+}
+
+fn get_body_text(request: &Request) -> Option<String> {
+    match request.body() {
+        Body::Text(body) => Some(body.clone()),
+        _ => None
+    }
 }
