@@ -1,17 +1,22 @@
 mod iteration;
 mod store;
 
+use aws_sdk_dynamodb::Client;
 use lambda_http::{run, http::StatusCode, service_fn, Error, IntoResponse, Request, Response, Body};
 use lambda_http::http::HeaderValue;
 use crate::iteration::Iteration;
+use crate::store::{add_iteration, find_iteration};
+use serde::Serialize;
 
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    run(service_fn(function_handler)).await
+    let config = aws_config::load_from_env().await;
+    let client = Client::new(&config);
+    run(service_fn(|request| function_handler(request, &client))).await
 }
 
-async fn function_handler(request: Request) -> Result<impl IntoResponse, Error> {
+async fn function_handler(request: Request, client: &Client) -> Result<impl IntoResponse, Error> {
     if !check_content_type(&request) {
         return Ok(make_bad_request());
     }
@@ -28,12 +33,30 @@ async fn function_handler(request: Request) -> Result<impl IntoResponse, Error> 
     }
     let iteration = iteration_wrapped.unwrap();
 
-    Ok(
-        Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::Text(body_text))
-            .unwrap()
-    )
+    let added_item = add_iteration(client, &iteration).await;
+    if added_item.is_err() {
+        return Ok(make_bad_request());
+    }
+
+    let prev_item = find_iteration(client, &iteration).await;
+    if prev_item.is_err() {
+        return Ok(make_bad_request());
+    }
+
+    match prev_item.unwrap() {
+        None => Ok(make_success_response(iteration).unwrap()),
+        Some(iteration) => Ok(make_success_response(iteration).unwrap())
+    }
+}
+
+fn make_success_response(body: impl Serialize) -> Result<Response<Body>, serde_json::Error> {
+    serde_json::to_string(&body)
+        .map(|serialized| {
+            Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::Text(serialized))
+                .unwrap()
+        })
 }
 
 fn check_content_type(request: &Request) -> bool {

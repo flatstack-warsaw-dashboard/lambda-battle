@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 const LANG: &str = "rust-1.65";
 
-
+#[derive(Serialize, Deserialize)]
 pub struct Iteration {
     pub lang_case: String,
     pub iteration: u64,

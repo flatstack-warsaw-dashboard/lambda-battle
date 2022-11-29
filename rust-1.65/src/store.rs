@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use aws_sdk_dynamodb::{Client};
 use aws_sdk_dynamodb::error::{GetItemError, PutItemError};
 use aws_sdk_dynamodb::model::AttributeValue;
-use aws_sdk_dynamodb::output::{GetItemOutput, PutItemOutput};
+use aws_sdk_dynamodb::output::{PutItemOutput};
 use aws_sdk_dynamodb::types::SdkError;
 use crate::iteration::Iteration;
 
-enum PutIterationErrors {
+pub enum PutIterationErrors {
     TableNameNotSet,
     SaveError(SdkError<PutItemError>),
 }
@@ -32,13 +32,14 @@ pub async fn add_iteration(client: &Client, iteration: &Iteration) -> Result<Put
         .map_err(|error| PutIterationErrors::SaveError(error))
 }
 
-enum FindIterationError {
+#[derive(Debug)]
+pub enum FindIterationError {
     TableNameNotSet,
     FindItemError(SdkError<GetItemError>),
     MapResultError(MapResultError),
 }
 
-pub async fn find_iteration(client: &Client, iteration: &Iteration) -> Result<Iteration, FindIterationError> {
+pub async fn find_iteration(client: &Client, iteration: &Iteration) -> Result<Option<Iteration>, FindIterationError> {
     let table_name = std::env::var("TABLE");
     if table_name.is_err() {
         return Err(FindIterationError::TableNameNotSet);
@@ -56,35 +57,33 @@ pub async fn find_iteration(client: &Client, iteration: &Iteration) -> Result<It
         .await
         .map_err(|error| FindIterationError::FindItemError(error))
         .and_then(|raw| {
-            match map_result(raw) {
-                Ok(val) => Ok(val),
+            if raw.item().is_none() {
+                return Ok(None);
+            }
+            match map_result(raw.item().unwrap()) {
+                Ok(val) => Ok(Some(val)),
                 Err(err) => Err(FindIterationError::MapResultError(err))
             }
         })
 }
 
-enum MapResultError {
-    EmptyOutput,
+#[derive(Debug)]
+pub enum MapResultError {
     MapValueError(MapValueError),
 }
 
-fn map_result(output: GetItemOutput) -> Result<Iteration, MapResultError> {
-    let item = output.item();
-    if item.is_none() {
-        return Err(MapResultError::EmptyOutput);
-    }
-
-    let lang = get_lang_value(item.unwrap());
+fn map_result(item: &HashMap<String, AttributeValue>) -> Result<Iteration, MapResultError> {
+    let lang = get_lang_value(item);
     if lang.is_err() {
         return Err(MapResultError::MapValueError(lang.err().unwrap()));
     }
 
-    let iteration_n = get_iteration_value(item.unwrap());
+    let iteration_n = get_iteration_value(item);
     if iteration_n.is_err() {
         return Err(MapResultError::MapValueError(iteration_n.err().unwrap()));
     }
 
-    let raw_event = get_raw_event_value(item.unwrap());
+    let raw_event = get_raw_event_value(item);
     if raw_event.is_err() {
         return Err(MapResultError::MapValueError(raw_event.err().unwrap()));
     }
@@ -97,7 +96,7 @@ fn map_result(output: GetItemOutput) -> Result<Iteration, MapResultError> {
 }
 
 #[derive(Debug)]
-enum MapValueError {
+pub enum MapValueError {
     KeyMissing(String),
     UnexpectedReturnValueType(String),
     ParsingValueError(String),

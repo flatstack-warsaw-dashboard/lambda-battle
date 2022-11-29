@@ -13,3 +13,7 @@ log = "0.4"
 lambda_http = "0.7.1"
 aws-sdk-dynamodb = "0.21.0"
 aws-config = "0.51.0"
+
+[profile.release]
+strip = true
+lto = true
