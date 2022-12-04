@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use aws_sdk_dynamodb::{Client};
 use aws_sdk_dynamodb::error::{GetItemError, PutItemError};
 use aws_sdk_dynamodb::model::AttributeValue;
@@ -9,6 +10,15 @@ use crate::iteration::Iteration;
 pub enum PutIterationErrors {
     TableNameNotSet,
     SaveError(SdkError<PutItemError>),
+}
+
+impl Display for PutIterationErrors {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PutIterationErrors::TableNameNotSet => write!(f, "Table name env variable is not set"),
+            PutIterationErrors::SaveError(sdk_error) => write!(f, "Saving item iteration error {}", sdk_error),
+        }
+    }
 }
 
 pub async fn add_iteration(client: &Client, iteration: &Iteration) -> Result<PutItemOutput, PutIterationErrors> {
@@ -36,7 +46,17 @@ pub async fn add_iteration(client: &Client, iteration: &Iteration) -> Result<Put
 pub enum FindIterationError {
     TableNameNotSet,
     FindItemError(SdkError<GetItemError>),
-    MapResultError(MapResultError),
+    MapResultError(MapValueError),
+}
+
+impl Display for FindIterationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FindIterationError::TableNameNotSet => write!(f, "Table name env variable is not set"),
+            FindIterationError::FindItemError(sdk_error) => write!(f, "previous item is not founded {}", sdk_error),
+            FindIterationError::MapResultError(error) => write!(f, "map result error {}", error)
+        }
+    }
 }
 
 pub async fn find_iteration(client: &Client, iteration: &Iteration) -> Result<Option<Iteration>, FindIterationError> {
@@ -57,7 +77,7 @@ pub async fn find_iteration(client: &Client, iteration: &Iteration) -> Result<Op
         .await
         .map_err(|error| FindIterationError::FindItemError(error))
         .and_then(|raw| {
-            if raw.item().is_none() {
+            if raw.item.is_none() {
                 return Ok(None);
             }
             match map_result(raw.item().unwrap()) {
@@ -67,39 +87,30 @@ pub async fn find_iteration(client: &Client, iteration: &Iteration) -> Result<Op
         })
 }
 
-#[derive(Debug)]
-pub enum MapResultError {
-    MapValueError(MapValueError),
-}
 
-fn map_result(item: &HashMap<String, AttributeValue>) -> Result<Iteration, MapResultError> {
-    let lang = get_lang_value(item);
-    if lang.is_err() {
-        return Err(MapResultError::MapValueError(lang.err().unwrap()));
-    }
-
-    let iteration_n = get_iteration_value(item);
-    if iteration_n.is_err() {
-        return Err(MapResultError::MapValueError(iteration_n.err().unwrap()));
-    }
-
-    let raw_event = get_raw_event_value(item);
-    if raw_event.is_err() {
-        return Err(MapResultError::MapValueError(raw_event.err().unwrap()));
-    }
-
+fn map_result(item: &HashMap<String, AttributeValue>) -> Result<Iteration, MapValueError> {
     Ok(Iteration {
-        lang_case: lang.unwrap(),
-        raw_event: raw_event.unwrap(),
-        iteration: iteration_n.unwrap(),
+        lang_case: get_lang_value(item)?,
+        raw_event: get_raw_event_value(item)?.clone(),
+        iteration: get_iteration_value(item)?,
     })
 }
 
 #[derive(Debug)]
 pub enum MapValueError {
     KeyMissing(String),
-    UnexpectedReturnValueType(String),
-    ParsingValueError(String),
+    UnexpectedReturnValueType(String, AttributeValue),
+    ParsingU64Error(String),
+}
+
+impl Display for MapValueError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MapValueError::KeyMissing(key) => write!(f, "missing {} from dynamodb response", key),
+            MapValueError::UnexpectedReturnValueType(key, _) => write!(f, "unexpected {} value type returned from dynamodb", key),
+            MapValueError::ParsingU64Error(key) => write!(f, "error parsing {}", key)
+        }
+    }
 }
 
 fn get_lang_value(result: &HashMap<String, AttributeValue>) -> Result<String, MapValueError> {
@@ -110,7 +121,7 @@ fn get_lang_value(result: &HashMap<String, AttributeValue>) -> Result<String, Ma
 
     match lang_value.unwrap() {
         AttributeValue::S(val) => Ok(val.clone()),
-        _ => Err(MapValueError::UnexpectedReturnValueType("langCase".parse().unwrap()))
+        _ => Err(MapValueError::UnexpectedReturnValueType("langCase".parse().unwrap(), lang_value.unwrap().clone()))
     }
 }
 
@@ -124,21 +135,21 @@ fn get_iteration_value(result: &HashMap<String, AttributeValue>) -> Result<u64, 
         AttributeValue::N(val) => {
             match val.parse::<u64>() {
                 Ok(value) => Ok(value),
-                Err(_) => Err(MapValueError::ParsingValueError("iteration".parse().unwrap()))
+                Err(_) => Err(MapValueError::ParsingU64Error("iteration".parse().unwrap()))
             }
         }
-        _ => Err(MapValueError::UnexpectedReturnValueType("iteration".parse().unwrap()))
+        _ => Err(MapValueError::UnexpectedReturnValueType("iteration".parse().unwrap(), lang_value.unwrap().clone()))
     }
 }
 
-fn get_raw_event_value(result: &HashMap<String, AttributeValue>) -> Result<String, MapValueError> {
+fn get_raw_event_value(result: &HashMap<String, AttributeValue>) -> Result<&String, MapValueError> {
     let lang_value = result.get("raw_event");
     if lang_value.is_none() {
         return Err(MapValueError::KeyMissing("raw_event".parse().unwrap()));
     }
 
     match lang_value.unwrap() {
-        AttributeValue::S(val) => Ok(val.clone()),
-        _ => Err(MapValueError::UnexpectedReturnValueType("raw_event".parse().unwrap()))
+        AttributeValue::S(val) => Ok(val),
+        _ => Err(MapValueError::UnexpectedReturnValueType("raw_event".parse().unwrap(), lang_value.unwrap().clone()))
     }
 }
