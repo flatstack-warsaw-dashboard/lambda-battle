@@ -1,12 +1,17 @@
 mod iteration;
 mod store;
+mod validate_request;
 
+use std::fmt::Display;
 use aws_sdk_dynamodb::Client;
 use lambda_http::{run, http::StatusCode, service_fn, Error, IntoResponse, Request, Response, Body};
 use lambda_http::http::HeaderValue;
 use crate::iteration::Iteration;
 use crate::store::{add_iteration, find_iteration};
+use crate::validate_request::validate_request;
+
 use serde::Serialize;
+use serde_json::json;
 
 
 #[tokio::main]
@@ -44,9 +49,38 @@ impl ToBadResponse for BadIterationParsing {
     }
 }
 
+fn format_body(err: &impl Display) -> Body {
+    Body::Text(json!({
+                    "error_message": err.to_string()
+                }).to_string())
+}
+
+fn build_response(status_code: &StatusCode, err: &impl Display) -> Response<Body> {
+    Response::builder()
+        .status(status_code)
+        .body(format_body(err))
+        .unwrap()
+}
+
+macro_rules! bad_response {
+    ($expr:expr, $status_code:expr) => {
+        if $expr.is_err() {
+            let error = $expr.err().unwrap();
+            return Ok(build_response(&$status_code, &error));
+        }
+    };
+      ($lit:ident, $expr:expr, $status_code:expr) => {
+        if $expr.is_err() {
+            let error = $expr.err().unwrap();
+            return Ok(build_response(&$status_code, &error));
+        }
+          let $lit = $expr.unwrap();
+    };
+}
 
 async fn function_handler(request: Request, client: &Client) -> Result<impl IntoResponse, Error> {
-    to_bad_response!(check_content_type(&request));
+    bad_response!(validate_request(&request), StatusCode::BAD_REQUEST);
+
     to_bad_response!(body_text, get_body_text(&request));
     to_bad_response!(iteration, Iteration::try_from(&body_text).map_err(|_| BadIterationParsing));
 
