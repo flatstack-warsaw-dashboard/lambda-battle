@@ -16,31 +16,48 @@ async fn main() -> Result<(), Error> {
     run(service_fn(|request| function_handler(request, &client))).await
 }
 
+macro_rules! to_bad_response {
+    ($lit:ident, $expr:expr) => {
+        if $expr.is_err() {
+           let error = $expr.err().unwrap();
+
+           return Ok(error.to_bad_response());
+        }
+
+      let $lit = $expr.unwrap();
+    };
+    ($expr:expr) => {
+        if $expr.is_err() {
+           let error = $expr.err().unwrap();
+
+           return Ok(error.to_bad_response());
+        }
+    }
+}
+
+#[derive(Debug)]
+struct BadIterationParsing;
+
+impl ToBadResponse for BadIterationParsing {
+    fn to_bad_response(&self) -> Response<Body> {
+        make_bad_response()
+    }
+}
+
+
 async fn function_handler(request: Request, client: &Client) -> Result<impl IntoResponse, Error> {
-    if !check_content_type(&request) {
-        return Ok(make_bad_request());
-    }
-
-    let body_text_opt = get_body_text(&request);
-    if body_text_opt.is_none() {
-        return Ok(make_bad_request());
-    }
-    let body_text = body_text_opt.unwrap();
-
-    let iteration_wrapped = Iteration::try_from(&body_text);
-    if iteration_wrapped.is_err() {
-        return Ok(make_bad_request());
-    }
-    let iteration = iteration_wrapped.unwrap();
+    to_bad_response!(check_content_type(&request));
+    to_bad_response!(body_text, get_body_text(&request));
+    to_bad_response!(iteration, Iteration::try_from(&body_text).map_err(|_| BadIterationParsing));
 
     let added_item = add_iteration(client, &iteration).await;
     if added_item.is_err() {
-        return Ok(make_bad_request());
+        return Ok(make_bad_response());
     }
 
     let prev_item = find_iteration(client, &iteration).await;
     if prev_item.is_err() {
-        return Ok(make_bad_request());
+        return Ok(make_bad_response());
     }
 
     match prev_item.unwrap() {
@@ -59,27 +76,64 @@ fn make_success_response(body: impl Serialize) -> Result<Response<Body>, serde_j
         })
 }
 
-fn check_content_type(request: &Request) -> bool {
-    request
+trait ToBadResponse {
+    fn to_bad_response(&self) -> Response<Body>;
+}
+
+#[derive(Debug)]
+enum CheckContentTypeErrors {
+    MissingContentType,
+    ContentTypeNotSupported,
+}
+
+impl ToBadResponse for CheckContentTypeErrors {
+    fn to_bad_response(&self) -> Response<Body> {
+        match self {
+            CheckContentTypeErrors::MissingContentType => make_bad_response(),
+            CheckContentTypeErrors::ContentTypeNotSupported => make_bad_response(),
+        }
+    }
+}
+
+fn check_content_type(request: &Request) -> Result<bool, CheckContentTypeErrors> {
+    let value = request
         .headers()
-        .get("Content-Type")
-        .map_or(false, is_application_json)
+        .get("Content-Type");
+
+    if value.is_none() {
+        return Err(CheckContentTypeErrors::MissingContentType);
+    }
+
+    if !is_application_json(value.unwrap()) {
+        return Err(CheckContentTypeErrors::ContentTypeNotSupported);
+    }
+
+    Ok(true)
 }
 
 fn is_application_json(header: &HeaderValue) -> bool {
     header.as_bytes() == "application/json".as_bytes()
 }
 
-fn make_bad_request() -> Response<Body> {
+fn make_bad_response() -> Response<Body> {
     Response::builder()
         .status(StatusCode::BAD_REQUEST)
         .body(Body::Empty)
         .unwrap()
 }
 
-fn get_body_text(request: &Request) -> Option<String> {
+#[derive(Debug)]
+struct GetBodyTextError;
+
+impl ToBadResponse for GetBodyTextError {
+    fn to_bad_response(&self) -> Response<Body> {
+        make_bad_response()
+    }
+}
+
+fn get_body_text(request: &Request) -> Result<String, GetBodyTextError> {
     match request.body() {
-        Body::Text(body) => Some(body.clone()),
-        _ => None
+        Body::Text(body) => Ok(body.clone()),
+        _ => Err(GetBodyTextError)
     }
 }
