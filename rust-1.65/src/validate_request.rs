@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter, write};
+use std::fmt::{Display, Formatter};
 use lambda_http::http::HeaderValue;
 use lambda_http::Request;
 

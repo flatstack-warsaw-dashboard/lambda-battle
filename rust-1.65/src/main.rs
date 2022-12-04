@@ -1,6 +1,7 @@
 mod iteration;
 mod store;
 mod validate_request;
+mod body_string;
 
 use std::fmt::Display;
 use aws_sdk_dynamodb::Client;
@@ -9,6 +10,7 @@ use lambda_http::http::HeaderValue;
 use crate::iteration::Iteration;
 use crate::store::{add_iteration, find_iteration};
 use crate::validate_request::validate_request;
+use crate::body_string::get_body_string;
 
 use serde::Serialize;
 use serde_json::json;
@@ -80,9 +82,9 @@ macro_rules! bad_response {
 
 async fn function_handler(request: Request, client: &Client) -> Result<impl IntoResponse, Error> {
     bad_response!(validate_request(&request), StatusCode::BAD_REQUEST);
+    bad_response!(body_string, get_body_string(&request), StatusCode::BAD_REQUEST);
 
-    to_bad_response!(body_text, get_body_text(&request));
-    to_bad_response!(iteration, Iteration::try_from(&body_text).map_err(|_| BadIterationParsing));
+    to_bad_response!(iteration, Iteration::try_from(body_string).map_err(|_| BadIterationParsing));
 
     let added_item = add_iteration(client, &iteration).await;
     if added_item.is_err() {
