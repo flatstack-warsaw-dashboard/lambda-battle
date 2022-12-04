@@ -5,20 +5,10 @@ terraform {
       version = ">= 4.17.1"
     }
   }
-
-  backend "s3" {
-    bucket         = "fwd-remote-state"
-    key            = "lambda-battle.tfstate"
-    region         = "eu-central-1"
-    encrypt        = true
-    dynamodb_table = "tf-remote-state-locks"
-    profile = "fwd-retro"
-  }
 }
 
 provider "aws" {
   region = "eu-central-1"
-  profile = "fwd-retro"
 
   default_tags {
     tags = {
@@ -59,6 +49,12 @@ module "ruby-2_7-lambda" {
   depends_on = [aws_dynamodb_table.data]
 }
 
+module "rust-1_65-lambda" {
+  source = "./rust-1.65"
+  data_table = aws_dynamodb_table.data
+  depends_on = [aws_dynamodb_table.data]
+}
+
 resource "aws_apigatewayv2_api" "gateway" {
   name          = "lambda-battle-api"
   protocol_type = "HTTP"
@@ -67,6 +63,7 @@ resource "aws_apigatewayv2_api" "gateway" {
 locals {
   lambda_resources = {
     "ruby-2_7-x86" = { "module" = module.ruby-2_7-lambda }
+    "rust-1_65-x86" = { "module" = module.rust-1_65-lambda }
   }
 }
 
