@@ -1,4 +1,5 @@
 require "aws-sdk-dynamodb"
+require 'json'
 
 DB = ::Aws::DynamoDB::Client.new
 LANG = "ruby-2.7-x86"
