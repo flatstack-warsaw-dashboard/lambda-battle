@@ -59,6 +59,12 @@ module "ruby-2_7-lambda" {
   depends_on = [aws_dynamodb_table.data]
 }
 
+module "ruby-yjit-3_2-lambda" {
+  source = "./ruby-yjit-3.2"
+  data_table = aws_dynamodb_table.data
+  depends_on = [aws_dynamodb_table.data]
+}
+
 resource "aws_apigatewayv2_api" "gateway" {
   name          = "lambda-battle-api"
   protocol_type = "HTTP"
@@ -66,7 +72,8 @@ resource "aws_apigatewayv2_api" "gateway" {
 
 locals {
   lambda_resources = {
-    "ruby-2_7-x86" = { "module" = module.ruby-2_7-lambda }
+    "ruby-2_7-x86" = { "module" = module.ruby-2_7-lambda }, 
+    "ruby-yjit-3_2-x86" = { "module" = module.ruby-yjit-3_2-lambda }
   }
 }
 
