@@ -4,5 +4,4 @@ import * as cdk from 'aws-cdk-lib';
 import { LambdaBattleStack } from '../lib/lambda-battle-stack';
 
 const app = new cdk.App();
-new LambdaBattleStack(app, 'LambdaBattleStack', {
-});
+new LambdaBattleStack(app, 'LambdaBattleStack');

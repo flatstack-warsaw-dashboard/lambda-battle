@@ -7,8 +7,8 @@ interface ApiGatewayProps {
   lambdas: TLambdas
 }
 
-export default class ApiGateway extends Construct {    
-  constructor(scope: Construct, id: string, props: ApiGatewayProps){
+export default class ApiGateway extends Construct {
+  constructor(scope: Construct, id: string, props: ApiGatewayProps) {
     super(scope, id);
 
     this.createLambdaBattleApi(props.lambdas);
