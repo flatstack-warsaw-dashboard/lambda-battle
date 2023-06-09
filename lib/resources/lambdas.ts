@@ -36,7 +36,10 @@ export default class Lambdas extends Construct {
   })
 
   private createRubyLambda(opts: LambdaOptions) {
+    const name = opts.lpackage.replace('.zip', '').replace(/\W/g, '_').toUpperCase()
+
     const lambdaProps = {
+      functionName: `${name}-Battle-Function`,
       code: Code.fromAsset(`./packages/${opts.lpackage}`),
       handler: 'src/func.handler',
       runtime: opts.runtime,
@@ -46,11 +49,10 @@ export default class Lambdas extends Construct {
       }
     }
 
-    const rubyFunction = new Function(this, 'ruby-2_7_lambda', lambdaProps);
+    const rubyFunction = new Function(this, `${name}-lambda`, lambdaProps);
 
     this.props.baseTable.grantReadWriteData(rubyFunction);
 
     return rubyFunction
   }
-
 }
