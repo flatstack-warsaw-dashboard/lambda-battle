@@ -2,7 +2,8 @@ require "aws-sdk-dynamodb"
 
 DB = ::Aws::DynamoDB::Client.new
 LANG = "ruby-yjit-3.2-x86"
-ITEM = Data.define(:langCase, :iteration, :raw_event, :event_params) do
+
+Item = Data.define(:langCase, :iteration, :raw_event, :event_params) do
   def to_h = super.except(:event_params).merge(**event_params)
 end
 
@@ -14,7 +15,7 @@ def handler(event:, **)
 
   return { statusCode: 400 } unless iteration
   
-  item = ITEM.new(LANG, iteration, event.to_h, event_params) 
+  item = Item.new(LANG, iteration, event.to_h, event_params) 
 
   new_item = DB.put_item(
     table_name: ENV["TABLE"], 
