@@ -6,7 +6,7 @@ import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { ITable } from "aws-cdk-lib/aws-dynamodb";
 
 export interface LambdasProps extends StackProps {
-    baseTable: ITable;
+  baseTable: ITable;
 }
 
 export type TLambdas = {
@@ -15,14 +15,14 @@ export type TLambdas = {
 
 type LambdaOptions = {
   runtime: Runtime,
-  lpackage: String
+  lpackage: string
 }
 
 export default class Lambdas extends Construct {
   readonly Ruby2_7Lambda: Function;
   private props: LambdasProps;
 
-  constructor(scope: Construct, id: string, props: LambdasProps){
+  constructor(scope: Construct, id: string, props: LambdasProps) {
     super(scope, id);
 
     this.props = props
@@ -37,13 +37,13 @@ export default class Lambdas extends Construct {
 
   private createRubyLambda(opts: LambdaOptions) {
     const lambdaProps = {
-        code: Code.fromAsset(`./packages/${opts.lpackage}`), 
-        handler: 'src/func.handler',
-        runtime: opts.runtime,
-        environment: {
-            GEM_PATH: './vendor',
-            TABLE: this.props.baseTable.tableName
-        }
+      code: Code.fromAsset(`./packages/${opts.lpackage}`),
+      handler: 'src/func.handler',
+      runtime: opts.runtime,
+      environment: {
+        GEM_PATH: './vendor',
+        TABLE: this.props.baseTable.tableName
+      }
     }
 
     const rubyFunction = new Function(this, 'ruby-2_7_lambda', lambdaProps);
