@@ -10,16 +10,18 @@ export interface LambdasProps extends StackProps {
 }
 
 export type TLambdas = {
-  Ruby2_7Lambda: IFunction
+  'ruby-2.7-x86': IFunction
 }
 
 type LambdaOptions = {
   runtime: Runtime,
-  lpackage: string
+  lpackage: string,
+  env?: { [key: string]: string }
 }
 
 export default class Lambdas extends Construct {
   readonly Ruby2_7Lambda: Function;
+
   private props: LambdasProps;
 
   constructor(scope: Construct, id: string, props: LambdasProps) {
@@ -32,7 +34,7 @@ export default class Lambdas extends Construct {
   }
 
   public all = (): TLambdas => ({
-    Ruby2_7Lambda: this.Ruby2_7Lambda
+    'ruby-2.7-x86': this.Ruby2_7Lambda
   })
 
   private createRubyLambda(opts: LambdaOptions) {
