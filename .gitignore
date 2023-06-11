@@ -7,4 +7,8 @@ node_modules
 .cdk.staging
 cdk.out
 
+# Generates on `make deploy`
+.aws_profile
+
 packages
+vendor

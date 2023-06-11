@@ -4,14 +4,14 @@ import { LambdaIntegration, RestApi } from "aws-cdk-lib/aws-apigateway";
 import { IFunction } from "aws-cdk-lib/aws-lambda";
 
 
-interface ApiGatewayProps {
+interface IApiGatewayProps {
   lambdas: TLambdas
 }
 
 export default class ApiGateway extends Construct {
   private battleApi: RestApi
 
-  constructor(scope: Construct, id: string, props: ApiGatewayProps) {
+  constructor(scope: Construct, id: string, props: IApiGatewayProps) {
     super(scope, id);
 
     this.createLambdaBattleApi(props.lambdas);
