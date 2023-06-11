@@ -1,4 +1,9 @@
-import { AttributeType, BillingMode, ITable, Table } from "aws-cdk-lib/aws-dynamodb";
+import {
+  AttributeType,
+  BillingMode,
+  type ITable,
+  Table,
+} from "aws-cdk-lib/aws-dynamodb";
 import { Construct } from "constructs";
 
 export default class Database extends Construct {
@@ -11,17 +16,17 @@ export default class Database extends Construct {
   }
 
   private createBaseTable(): ITable {
-    const baseTable = new Table(this, 'lambda-battle-data', {
-      tableName: 'lambda-battle-data',
+    const baseTable = new Table(this, "lambda-battle-data", {
+      tableName: "lambda-battle-data",
       partitionKey: {
-        name: 'langCase',
-        type: AttributeType.STRING
+        name: "langCase",
+        type: AttributeType.STRING,
       },
       sortKey: {
         name: "iteration",
-        type: AttributeType.NUMBER
+        type: AttributeType.NUMBER,
       },
-      billingMode: BillingMode.PAY_PER_REQUEST
+      billingMode: BillingMode.PAY_PER_REQUEST,
     });
 
     return baseTable;
